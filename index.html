@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>¡Al Revés! — el juego de palabras invertidas</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1b1036; --card:#2a1a52; --ink:#fff7e8; --muted:#c9b8f0;
+    --a:#ff5d8f; --b:#ffc94d; --c:#3ee0c0; --line:rgba(255,255,255,.12);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%,#3b2378,var(--bg));
+    color:var(--ink);font-family:'Baloo 2',system-ui,sans-serif;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:480px;padding:18px 16px 40px}
+  h1{font-size:44px;line-height:1;margin:6px 0 2px;text-align:center;letter-spacing:1px}
+  h1 .rev{display:inline-block;transform:scaleX(-1);color:var(--b)}
+  .tag{text-align:center;color:var(--muted);margin:0 0 16px;font-size:16px}
+  .score{display:flex;gap:10px;margin-bottom:14px}
+  .pl{flex:1;background:var(--card);border:2px solid var(--line);border-radius:18px;padding:8px 12px;text-align:center;transition:.2s}
+  .pl.on{border-color:var(--b);box-shadow:0 0 0 3px rgba(255,201,77,.18)}
+  .pl input{width:100%;background:transparent;border:0;color:var(--ink);font:inherit;font-size:17px;text-align:center;outline:none}
+  .pl .pts{font-size:34px;font-weight:800;line-height:1}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:24px;padding:20px;margin-bottom:14px}
+  .step{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--c);font-weight:700}
+  h2{margin:2px 0 10px;font-size:26px;line-height:1.15}
+  p{margin:6px 0 12px;color:var(--muted);font-size:16px;line-height:1.35}
+  button,.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:16px;
+    padding:14px 16px;font:inherit;font-size:19px;font-weight:700;cursor:pointer;margin-top:10px;color:#1b1036;background:var(--b);
+    transition:transform .08s}
+  button:active,.btn:active{transform:scale(.97)}
+  button:disabled{opacity:.4}
+  .pink{background:var(--a);color:#fff}
+  .teal{background:var(--c)}
+  .ghost{background:transparent;color:var(--ink);border:2px solid var(--line)}
+  .row{display:flex;gap:10px}.row>*{flex:1}
+  .field{width:100%;padding:13px 14px;border-radius:14px;border:2px solid var(--line);background:#1d1240;color:var(--ink);font:inherit;font-size:18px;outline:none}
+  .field:focus{border-color:var(--b)}
+  .rec{width:120px;height:120px;border-radius:50%;margin:14px auto 4px;background:var(--a);color:#fff;font-size:44px;
+    display:flex;align-items:center;justify-content:center;border:0;cursor:pointer;box-shadow:0 8px 0 #b8335f}
+  .rec.live{animation:pulse 1s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,93,143,.7),0 8px 0 #b8335f}100%{box-shadow:0 0 0 22px rgba(255,93,143,0),0 8px 0 #b8335f}}
+  .timer{text-align:center;color:var(--muted);font-size:16px;min-height:22px}
+  canvas{width:100%;height:70px;display:block;margin:10px 0 0;border-radius:12px;background:#1d1240}
+  .speed{display:flex;gap:6px;margin-top:10px}
+  .speed button{margin:0;padding:8px;font-size:15px;background:#1d1240;color:var(--muted);border:2px solid var(--line)}
+  .speed button.sel{border-color:var(--c);color:var(--ink)}
+  .hide{display:none!important}
+  .note{font-size:14px;color:var(--muted);background:rgba(62,224,192,.08);border:1px dashed rgba(62,224,192,.4);border-radius:12px;padding:10px 12px;margin-top:12px}
+  .reveal{font-size:30px;font-weight:800;text-align:center;color:var(--b);margin:10px 0;word-break:break-word}
+  .reveal.mirror{transform:scaleX(-1);color:var(--muted);font-size:20px}
+  .big{font-size:64px;text-align:center;margin:4px 0}
+  .tiny{font-size:13px;text-align:center;color:var(--muted);margin-top:16px}
+  a{color:var(--c)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>¡Al <span class="rev">Revés</span>!</h1>
+  <div class="tag">Graba una frase · escúchala al revés · adivina</div>
+
+  <div class="score">
+    <div class="pl" id="p0"><input id="n0" value="Jugador 1" maxlength="16"><div class="pts" id="s0">0</div></div>
+    <div class="pl" id="p1"><input id="n1" value="Jugador 2" maxlength="16"><div class="pts" id="s1">0</div></div>
+  </div>
+
+  <!-- PASO 1: elegir frase -->
+  <section class="card" id="v-secret">
+    <div class="step">Paso 1 · <span class="who-rec"></span> graba</div>
+    <h2>Escribe tu frase secreta</h2>
+    <p>Que <b class="who-guess"></b> no mire. Escríbela para poder revelarla al final.</p>
+    <input class="field" id="secret" placeholder="Ej: arroz con pollo" autocomplete="off">
+    <button class="ghost" id="idea">🎲 Dame una idea</button>
+    <button id="toRec">Listo, a grabar →</button>
+  </section>
+
+  <!-- PASO 2: grabar -->
+  <section class="card hide" id="v-rec">
+    <div class="step">Paso 2 · <span class="who-rec"></span> graba</div>
+    <h2>Di la frase en voz alta</h2>
+    <p>Habla claro y despacio. Toca para empezar y otra vez para parar.</p>
+    <button class="rec" id="micBtn">🎙️</button>
+    <div class="timer" id="timer"></div>
+    <div id="fallback" class="hide">
+      <div class="note" id="fbMsg">Aquí el micrófono está bloqueado. Toca el botón: se abrirá la grabadora del teléfono (en Android) o podrás elegir una nota de voz (en iPhone). Graba, guarda y vuelve.</div>
+      <label class="btn teal" for="fileIn">🎙️ Grabar con la grabadora del teléfono</label>
+      <input type="file" id="fileIn" accept="audio/*" capture class="hide">
+    </div>
+    <button class="ghost" id="useFile">o sube un audio grabado</button>
+    <button class="ghost" id="backSecret">← Cambiar frase</button>
+  </section>
+
+  <!-- PASO 3: comprobar -->
+  <section class="card hide" id="v-check">
+    <div class="step">Paso 3 · Solo <span class="who-rec"></span></div>
+    <h2>¿Quedó bien?</h2>
+    <canvas id="wave1"></canvas>
+    <div class="row"><button class="ghost" id="playFwd">▶ Normal</button><button class="ghost" id="playRev1">◀ Al revés</button></div>
+    <button class="pink" id="reRec">↺ Grabar de nuevo</button>
+    <button id="toPass">¡Perfecto! →</button>
+  </section>
+
+  <!-- PASO 4: pasar teléfono -->
+  <section class="card hide" id="v-pass">
+    <div class="big">📱➡️</div>
+    <h2 style="text-align:center">Pásale el teléfono a <span class="who-guess"></span></h2>
+    <button id="toGuess">Soy <span class="who-guess"></span>, ¡estoy listo!</button>
+  </section>
+
+  <!-- PASO 5: adivinar -->
+  <section class="card hide" id="v-guess">
+    <div class="step">Paso 4 · <span class="who-guess"></span> adivina</div>
+    <h2>Escucha la frase al revés</h2>
+    <canvas id="wave2"></canvas>
+    <button class="teal" id="playRev2">◀ Escuchar al revés</button>
+    <div class="speed" id="speed">
+      <button data-r="0.6">Lento</button><button data-r="0.8">Medio</button><button data-r="1" class="sel">Normal</button>
+    </div>
+
+    <div class="note">
+      <b>Truco:</b> imita lo que oyes (al revés) y graba tu imitación. La app la vuelve a invertir… ¡y a veces se entiende la frase original!
+    </div>
+    <div class="row">
+      <button class="pink" id="mimicBtn">🎙️ Imitar</button>
+      <button class="ghost" id="mimicPlay" disabled>▶ Oír mi imitación invertida</button>
+    </div>
+    <label class="btn ghost hide" for="mimicFile" id="mimicFileLbl">📁 Imitación con grabadora</label>
+    <input type="file" id="mimicFile" accept="audio/*" capture class="hide">
+    <div class="timer" id="timer2"></div>
+
+    <input class="field" id="guess" placeholder="¿Qué frase es?" autocomplete="off" style="margin-top:12px">
+    <button id="check">Comprobar</button>
+    <button class="ghost" id="giveUp">Me rindo 🏳️</button>
+  </section>
+
+  <!-- PASO 6: resultado -->
+  <section class="card hide" id="v-result">
+    <div class="big" id="resEmoji">🎉</div>
+    <h2 style="text-align:center" id="resTitle"></h2>
+    <p style="text-align:center;margin:0">La frase era:</p>
+    <div class="reveal" id="resPhrase"></div>
+    <div class="reveal mirror" id="resMirror"></div>
+    <div class="row"><button class="ghost" id="resFwd">▶ Normal</button><button class="ghost" id="resRev">◀ Al revés</button></div>
+    <div id="judge" class="hide">
+      <p style="text-align:center">¿Fue suficientemente cerca? Decide <span class="who-rec"></span>:</p>
+      <div class="row"><button class="teal" id="yes">✔ Vale</button><button class="pink" id="no">✘ No vale</button></div>
+    </div>
+    <button id="next">Siguiente ronda →</button>
+  </section>
+
+  <div class="tiny"><a href="#" id="reset">Reiniciar marcador</a></div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const IDEAS = ["arroz con pollo","hola mamá","pan con queso","me gusta el chocolate","el perro come papas",
+ "buenos días Colombia","quiero un café","la luna es de queso","tengo mucha hambre","vamos a la playa",
+ "mi gato se llama Pepe","agua de panela","pásame la sal","no me digas","qué calor tan horrible",
+ "bailando salsa","murciélago","el tren llega tarde","feliz cumpleaños","abracadabra","sopa de letras",
+ "tomate y lechuga","dame un abrazo","la vaca lola","me duele la cabeza"];
+
+const st = { turn:0, score:[0,0], fwd:null, rev:null, mimicRev:null, rate:1, guessed:false };
+let ctx, cur = null;
+
+const AC = () => { if(!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==='suspended') ctx.resume(); return ctx; };
+const names = () => [$('n0').value.trim()||'Jugador 1', $('n1').value.trim()||'Jugador 2'];
+
+function refresh(){
+  const n = names(), r = st.turn, g = 1-st.turn;
+  document.querySelectorAll('.who-rec').forEach(e=>e.textContent=n[r]);
+  document.querySelectorAll('.who-guess').forEach(e=>e.textContent=n[g]);
+  $('s0').textContent=st.score[0]; $('s1').textContent=st.score[1];
+  $('p0').classList.toggle('on', r===0); $('p1').classList.toggle('on', r===1);
+}
+['n0','n1'].forEach(i=>$(i).addEventListener('input',refresh));
+
+function show(v){
+  stop(); stopRec();
+  document.querySelectorAll('section.card').forEach(s=>s.classList.toggle('hide', s.id!==v));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ---------- audio helpers ---------- */
+function trim(buf){
+  const d = buf.getChannelData(0), th = 0.02; let s=0, e=d.length-1;
+  while(s<d.length && Math.abs(d[s])<th) s++;
+  while(e>s && Math.abs(d[e])<th) e--;
+  const pad = Math.floor(buf.sampleRate*0.12);
+  s = Math.max(0,s-pad); e = Math.min(d.length-1,e+pad);
+  if(e-s < buf.sampleRate*0.2) return buf;
+  const out = ctx.createBuffer(buf.numberOfChannels, e-s+1, buf.sampleRate);
+  for(let c=0;c<buf.numberOfChannels;c++) out.copyToChannel(buf.getChannelData(c).slice(s,e+1), c);
+  return out;
+}
+function reverse(buf){
+  const out = ctx.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);
+  for(let c=0;c<buf.numberOfChannels;c++){ const a = buf.getChannelData(c).slice(); a.reverse(); out.copyToChannel(a,c); }
+  return out;
+}
+async function decode(blob){
+  AC();
+  const ab = await blob.arrayBuffer();
+  const buf = await new Promise((res,rej)=>{ const p = ctx.decodeAudioData(ab,res,rej); if(p&&p.then) p.then(res,rej); });
+  return trim(buf);
+}
+function play(buf, rate=1){
+  if(!buf) return; AC(); stop();
+  const s = ctx.createBufferSource(); s.buffer=buf; s.playbackRate.value=rate; s.connect(ctx.destination); s.start(); cur=s;
+  s.onended=()=>{ if(cur===s) cur=null; };
+}
+function stop(){ if(cur){ try{cur.stop()}catch(e){} cur=null; } }
+function draw(canvas, buf, color){
+  const dpr = window.devicePixelRatio||1, w = canvas.clientWidth*dpr, h = canvas.clientHeight*dpr;
+  canvas.width=w; canvas.height=h; const g = canvas.getContext('2d'); g.clearRect(0,0,w,h);
+  if(!buf) return; const d = buf.getChannelData(0), bars = 60, step = Math.floor(d.length/bars), bw = w/bars;
+  g.fillStyle=color;
+  for(let i=0;i<bars;i++){ let m=0; for(let j=0;j<step;j+=8){ const v=Math.abs(d[i*step+j]||0); if(v>m) m=v; }
+    const bh = Math.max(3*dpr, Math.min(1,m*1.6)*h*.9); g.fillRect(i*bw+bw*.2,(h-bh)/2,bw*.6,bh); }
+}
+
+/* ---------- recorder ---------- */
+let rec=null, chunks=[], stream=null, tick=null, recTarget=null;
+async function startRec(target, timerEl, btn){
+  AC();
+  try{
+    stream = await Promise.race([
+      navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),6000))
+    ]);
+  }catch(e){ micFailed(); return false; }
+  chunks=[]; recTarget=target;
+  rec = new MediaRecorder(stream);
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onstop = async () => {
+    stream.getTracks().forEach(t=>t.stop()); stream=null;
+    const blob = new Blob(chunks,{type:rec.mimeType||'audio/webm'});
+    try{ await recTarget(await decode(blob)); }catch(e){ timerEl.textContent='No se pudo leer el audio, intenta otra vez.'; }
+  };
+  rec.start();
+  btn.classList.add('live'); const t0=Date.now();
+  tick=setInterval(()=>{ const s=(Date.now()-t0)/1000; timerEl.textContent='Grabando… '+s.toFixed(1)+' s'; if(s>15) stopRec(); },100);
+  return true;
+}
+function stopRec(){
+  clearInterval(tick); tick=null;
+  document.querySelectorAll('.live').forEach(b=>b.classList.remove('live'));
+  if(rec && rec.state==='recording') rec.stop();
+}
+const recording = () => rec && rec.state==='recording';
+let micOK = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+try{
+  const pol = document.permissionsPolicy || document.featurePolicy;
+  if(pol && pol.allowsFeature && !pol.allowsFeature('microphone')) micOK = false;
+}catch(e){}
+try{ if(window.self !== window.top && !micOK) micOK = false; }catch(e){}
+function micFailed(){
+  micOK=false;
+  $('micBtn').classList.add('hide'); $('useFile').classList.add('hide'); $('fallback').classList.remove('hide');
+  $('timer').textContent='';
+  $('mimicBtn').classList.add('hide'); $('mimicFileLbl').classList.remove('hide');
+}
+if(!micOK) micFailed();
+
+/* ---------- flujo ---------- */
+$('idea').onclick = () => { $('secret').value = IDEAS[Math.floor(Math.random()*IDEAS.length)]; };
+$('toRec').onclick = () => { if(!$('secret').value.trim()){ $('secret').focus(); $('secret').placeholder='¡Escribe algo primero!'; return; } $('timer').textContent=''; show('v-rec'); };
+$('backSecret').onclick = () => show('v-secret');
+$('useFile').onclick = () => $('fallback').classList.toggle('hide');
+
+async function gotMain(buf){
+  st.fwd=buf; st.rev=reverse(buf); st.mimicRev=null;
+  show('v-check'); requestAnimationFrame(()=>draw($('wave1'),st.rev,'#ffc94d'));
+}
+$('micBtn').onclick = async () => {
+  if(recording()){ stopRec(); $('timer').textContent='Procesando…'; return; }
+  await startRec(gotMain, $('timer'), $('micBtn'));
+};
+$('fileIn').onchange = async e => {
+  const f=e.target.files[0]; if(!f) return; $('timer').textContent='Procesando…';
+  try{ await gotMain(await decode(f)); }catch(err){ $('timer').textContent='Ese archivo no se pudo leer. Prueba con otro formato.'; }
+  e.target.value='';
+};
+$('playFwd').onclick = () => play(st.fwd);
+$('playRev1').onclick = () => play(st.rev);
+$('reRec').onclick = () => { $('timer').textContent=''; show('v-rec'); };
+$('toPass').onclick = () => show('v-pass');
+$('toGuess').onclick = () => {
+  $('guess').value=''; $('mimicPlay').disabled=true; $('timer2').textContent=''; st.mimicRev=null;
+  show('v-guess'); requestAnimationFrame(()=>draw($('wave2'),st.rev,'#3ee0c0'));
+};
+$('playRev2').onclick = () => play(st.rev, st.rate);
+$('speed').onclick = e => { const b=e.target.closest('button'); if(!b) return;
+  st.rate=+b.dataset.r; [...$('speed').children].forEach(x=>x.classList.toggle('sel',x===b)); play(st.rev,st.rate); };
+
+async function gotMimic(buf){ st.mimicRev=reverse(buf); $('mimicPlay').disabled=false; $('timer2').textContent='¡Listo! Escucha tu imitación invertida.'; play(st.mimicRev); }
+$('mimicBtn').onclick = async () => {
+  if(recording()){ stopRec(); $('mimicBtn').textContent='🎙️ Imitar'; $('timer2').textContent='Procesando…'; return; }
+  if(await startRec(gotMimic, $('timer2'), $('mimicBtn'))) $('mimicBtn').textContent='⏹ Parar';
+};
+$('mimicFile').onchange = async e => { const f=e.target.files[0]; if(!f) return;
+  try{ await gotMimic(await decode(f)); }catch(err){ $('timer2').textContent='No se pudo leer ese audio.'; } e.target.value=''; };
+$('mimicPlay').onclick = () => play(st.mimicRev);
+
+const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ ]/g,'').replace(/\s+/g,' ').trim();
+function similar(a,b){ // distancia de Levenshtein normalizada
+  a=norm(a); b=norm(b); if(!a||!b) return 0; if(a===b) return 1;
+  const m=a.length,n=b.length, d=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+  for(let j=1;j<=n;j++) d[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  return 1-d[m][n]/Math.max(m,n);
+}
+function result(kind){
+  const n=names(), g=1-st.turn, phrase=$('secret').value.trim();
+  $('resPhrase').textContent='“'+phrase+'”';
+  $('resMirror').textContent=[...phrase].reverse().join('');
+  $('judge').classList.add('hide'); $('next').classList.remove('hide');
+  if(kind==='win'){ st.score[g]++; $('resEmoji').textContent='🎉'; $('resTitle').textContent='¡'+n[g]+' lo adivinó! +1'; }
+  else if(kind==='close'){ $('resEmoji').textContent='🤔'; $('resTitle').textContent='¡Casi! Dijiste “'+$('guess').value.trim()+'”';
+    $('judge').classList.remove('hide'); $('next').classList.add('hide'); }
+  else { st.score[st.turn]++; $('resEmoji').textContent='🙃'; $('resTitle').textContent='¡No lo adivinó! +1 para '+n[st.turn]; }
+  refresh(); show('v-result');
+}
+$('check').onclick = () => {
+  const g=$('guess').value; if(!g.trim()){ $('guess').focus(); return; }
+  const s=similar(g,$('secret').value);
+  result(s>=0.85?'win': s>=0.5?'close':'lose');
+};
+$('guess').addEventListener('keydown',e=>{ if(e.key==='Enter') $('check').click(); });
+$('giveUp').onclick = () => result('lose');
+$('yes').onclick = () => { st.score[1-st.turn]++; $('resEmoji').textContent='🎉'; $('resTitle').textContent='¡Vale! +1 para '+names()[1-st.turn]; finishJudge(); };
+$('no').onclick  = () => { st.score[st.turn]++; $('resEmoji').textContent='🙃'; $('resTitle').textContent='No vale. +1 para '+names()[st.turn]; finishJudge(); };
+function finishJudge(){ $('judge').classList.add('hide'); $('next').classList.remove('hide'); refresh(); }
+$('resFwd').onclick = () => play(st.fwd);
+$('resRev').onclick = () => play(st.rev);
+$('next').onclick = () => { st.turn=1-st.turn; st.fwd=st.rev=st.mimicRev=null; $('secret').value=''; refresh(); show('v-secret'); };
+$('reset').onclick = e => { e.preventDefault(); st.score=[0,0]; st.turn=0; refresh(); show('v-secret'); };
+
+refresh();
+})();
+</script>
+</body>
+</html>
